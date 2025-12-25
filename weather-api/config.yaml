@@ -1,0 +1,76 @@
+app:
+  name: "weather-api"
+  env: "development"
+  log_level: "info"
+  port: 8080
+  shutdown_timeout: "30s"
+
+kafka:
+  broker: "kafka:9093"
+  topic: "weather-data-raw"
+  group_id: "weather-api-group"
+  consumer_timeout: "5m"
+  max_retries: 3
+  batch_size: 100
+
+postgres:
+  coordinator_host: "postgres-coordinator"
+  coordinator_port: 5432
+  shard_hosts: ["postgres-shard-1", "postgres-shard-2", "postgres-shard-3"]
+  port: 5432
+  user: "weather_user"
+  password: "weather_pass"
+  database: "weather_db"
+  ssl_mode: "disable"
+  max_connections: 20
+  max_idle_connections: 5
+  connection_timeout: "30s"
+  migration_path: "./migrations"
+
+redis:
+  host: "redis"
+  port: 6379
+  password: "redis_pass"
+  db: 0
+  pool_size: 10
+  min_idle_connections: 2
+  max_retries: 3
+  timeout: "5s"
+
+minio:
+  endpoint: "minio:9000"
+  access_key: "minioadmin"
+  secret_key: "minioadmin"
+  bucket: "weather-reports"
+  use_ssl: false
+  timeout: "30s"
+
+scheduler:
+  kafka_poll_interval: "5m"
+  report_generation_interval: "1h"
+  cleanup_interval: "24h"
+  timeout: "10m"
+
+cache:
+  daily_report_ttl: "24h"
+  weekly_report_ttl: "168h"  # 7 дней
+  monthly_report_ttl: "720h" # 30 дней
+  max_cache_size_mb: 100
+
+reports:
+  daily_retention_days: 30
+  weekly_retention_days: 90
+  monthly_retention_days: 365
+  include_cities: ["524901", "498817", "551487", "1486209", "1496747", "2013348", "2023469", "1508291", "511565", "479123"]
+
+api:
+  base_path: "/api/v1"
+  enable_swagger: true
+  cors_allowed_origins: ["*"]
+  rate_limit: 100
+  rate_limit_window: "1m"
+
+healthcheck:
+  timeout: "10s"
+  interval: "30s"
+  startup_delay: "30s"

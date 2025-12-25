@@ -1,0 +1,214 @@
+basePath: /api/v1
+definitions:
+  api.ErrorResponse:
+    properties:
+      error:
+        type: string
+      message:
+        type: string
+      time:
+        type: string
+    type: object
+  api.HealthResponse:
+    properties:
+      services:
+        additionalProperties:
+          type: string
+        type: object
+      status:
+        type: string
+      time:
+        type: string
+      version:
+        type: string
+    type: object
+  api.ReportResponse:
+    properties:
+      city_id:
+        type: integer
+      download_url:
+        type: string
+      expires_at:
+        type: string
+      file_name:
+        type: string
+      file_size:
+        type: integer
+      generated_at:
+        type: string
+      id:
+        type: string
+      period_end:
+        type: string
+      period_start:
+        type: string
+      report_type:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: |-
+    Микросервис для обработки погодных данных и генерации отчетов.
+  title: Weather API Service
+  version: 1.0.0
+paths:
+  /health:
+    get:
+      consumes:
+      - application/json
+      description: Проверяет состояние сервиса
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.HealthResponse'
+      summary: Health check endpoint
+      tags:
+      - health
+  /reports/{id}/download:
+    get:
+      consumes:
+      - application/json
+      description: Скачать Excel отчет по id
+      parameters:
+      - description: ID отчета
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Download report by ID
+      tags:
+      - reports
+  /reports/daily:
+    get:
+      consumes:
+      - application/json
+      description: Генерирует дневной отчет по городу
+      parameters:
+      - description: ID города
+        in: query
+        name: city_id
+        required: true
+        type: integer
+      - description: Дата в формате YYYY-MM-DD
+        in: query
+        name: date
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.ReportResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Generate daily weather report
+      tags:
+      - reports
+  /reports/monthly:
+    get:
+      consumes:
+      - application/json
+      description: Генерирует месячный отчет по городу
+      parameters:
+      - description: City ID
+        in: query
+        name: city_id
+        required: true
+        type: integer
+      - description: Год
+        in: query
+        name: year
+        required: true
+        type: integer
+      - description: Месяц (1-12)
+        in: query
+        name: month
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.ReportResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Generate monthly weather report
+      tags:
+      - reports
+  /reports/weekly:
+    get:
+      consumes:
+      - application/json
+      description: Генерирует недельный отчет по городу
+      parameters:
+      - description: City ID
+        in: query
+        name: city_id
+        required: true
+        type: integer
+      - description: Год
+        in: query
+        name: year
+        required: true
+        type: integer
+      - description: Номер недели (1-52)
+        in: query
+        name: week
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.ReportResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/api.ErrorResponse'
+      summary: Generate weekly weather report
+      tags:
+      - reports
+schemes:
+- http
+swagger: "2.0"
