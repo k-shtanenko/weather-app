@@ -1,0 +1,27 @@
+app:
+  name: "weather-fetcher"
+  env: "development"
+  log_level: "info"
+
+openweather:
+  api_key: "${WEATHER_API_KEY}"
+  base_url: "${OPENWEATHER_BASE_URL}"
+  units: "${OPENWEATHER_UNITS}"
+  lang: "${OPENWEATHER_LANG}"
+  city_ids: "${CITY_IDS}"
+
+kafka:
+  broker: "${KAFKA_BROKER}"
+  topic: "${KAFKA_WEATHER_TOPIC}"
+  required_acks: 1
+  max_retries: 3
+
+scheduler:
+  interval: "5m"
+  timeout: "30s"
+
+healthcheck:
+  api_timeout: "5s"
+  kafka_timeout: "10s"
+  retry_interval: "2s"
+  max_retries: 3
