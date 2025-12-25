@@ -1,7 +1,6 @@
 package api
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -10,31 +9,17 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/k-shtanenko/weather-app/weather-api/internal/domain/entities"
+	"github.com/k-shtanenko/weather-app/weather-api/internal/domain/ports"
 	"github.com/k-shtanenko/weather-app/weather-api/internal/pkg/logger"
 )
 
-type ReportService interface {
-	GenerateDailyReport(ctx context.Context, cityID int, date time.Time) (entities.ExcelReportEntity, error)
-	GenerateWeeklyReport(ctx context.Context, cityID int, year int, week int) (entities.ExcelReportEntity, error)
-	GenerateMonthlyReport(ctx context.Context, cityID int, year int, month time.Month) (entities.ExcelReportEntity, error)
-	GetReport(ctx context.Context, reportID string) (entities.ExcelReportEntity, error)
-	DownloadReport(ctx context.Context, reportID string) (io.ReadCloser, string, error)
-	HealthCheck(ctx context.Context) error
-}
-
-type CacheService interface {
-	GetReportFromCache(ctx context.Context, reportType entities.ReportType, cityID int, periodStart, periodEnd time.Time) (entities.APICacheEntity, error)
-	CacheReport(ctx context.Context, reportType entities.ReportType, cityID int, periodStart, periodEnd time.Time, data []byte, contentType, fileName string, ttl time.Duration) error
-	HealthCheck(ctx context.Context) error
-}
-
 type APIHandler struct {
-	reportService ReportService
-	cacheService  CacheService
+	reportService ports.ReportService
+	cacheService  ports.CacheService
 	logger        logger.Logger
 }
 
-func NewAPIHandler(reportService ReportService, cacheService CacheService) *APIHandler {
+func NewAPIHandler(reportService ports.ReportService, cacheService ports.CacheService) *APIHandler {
 	return &APIHandler{
 		reportService: reportService,
 		cacheService:  cacheService,

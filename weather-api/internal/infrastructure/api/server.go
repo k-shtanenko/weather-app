@@ -7,11 +7,12 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
 	_ "github.com/k-shtanenko/weather-app/weather-api/docs"
 	"github.com/k-shtanenko/weather-app/weather-api/internal/config"
+	"github.com/k-shtanenko/weather-app/weather-api/internal/domain/ports"
 	"github.com/k-shtanenko/weather-app/weather-api/internal/pkg/logger"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 type API interface {
@@ -29,7 +30,7 @@ type APIServer struct {
 	logger     logger.Logger
 }
 
-func NewAPIServer(reportService ReportService, cacheService CacheService, middleware *Middleware, cfg *config.Config) *APIServer {
+func NewAPIServer(reportService ports.ReportService, cacheService ports.CacheService, middleware *Middleware, cfg *config.Config) *APIServer {
 	gin.SetMode(gin.ReleaseMode)
 	if cfg.App.Env == "development" {
 		gin.SetMode(gin.DebugMode)
