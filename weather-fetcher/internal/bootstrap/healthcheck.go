@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/weather-app/weather-fetcher/internal/domain/ports"
-	"github.com/weather-app/weather-fetcher/internal/pkg/logger"
+	"github.com/k-shtanenko/weather-app/weather-fetcher/internal/domain/ports"
+	"github.com/k-shtanenko/weather-app/weather-fetcher/internal/pkg/logger"
 )
 
 type HealthCheck interface {

@@ -3,7 +3,7 @@ package ports
 import (
 	"context"
 
-	"github.com/weather-app/weather-fetcher/internal/domain/entities"
+	"github.com/k-shtanenko/weather-app/weather-fetcher/internal/domain/entities"
 )
 
 type Producer interface {

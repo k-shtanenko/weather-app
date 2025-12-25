@@ -7,13 +7,13 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/weather-app/weather-fetcher/internal/application"
-	"github.com/weather-app/weather-fetcher/internal/config"
-	"github.com/weather-app/weather-fetcher/internal/domain/ports"
-	"github.com/weather-app/weather-fetcher/internal/infrastructure/http"
-	"github.com/weather-app/weather-fetcher/internal/infrastructure/messaging"
-	"github.com/weather-app/weather-fetcher/internal/infrastructure/scheduler"
-	"github.com/weather-app/weather-fetcher/internal/pkg/logger"
+	"github.com/k-shtanenko/weather-app/weather-fetcher/internal/application"
+	"github.com/k-shtanenko/weather-app/weather-fetcher/internal/config"
+	"github.com/k-shtanenko/weather-app/weather-fetcher/internal/domain/ports"
+	"github.com/k-shtanenko/weather-app/weather-fetcher/internal/infrastructure/http"
+	"github.com/k-shtanenko/weather-app/weather-fetcher/internal/infrastructure/messaging"
+	"github.com/k-shtanenko/weather-app/weather-fetcher/internal/infrastructure/scheduler"
+	"github.com/k-shtanenko/weather-app/weather-fetcher/internal/pkg/logger"
 )
 
 type BootstrapInterface interface {

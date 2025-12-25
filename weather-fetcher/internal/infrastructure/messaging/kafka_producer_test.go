@@ -7,11 +7,11 @@ import (
 	"time"
 
 	"github.com/IBM/sarama"
+	"github.com/k-shtanenko/weather-app/weather-fetcher/internal/domain/entities"
+	"github.com/k-shtanenko/weather-app/weather-fetcher/internal/domain/ports"
+	"github.com/k-shtanenko/weather-app/weather-fetcher/internal/pkg/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/weather-app/weather-fetcher/internal/domain/entities"
-	"github.com/weather-app/weather-fetcher/internal/domain/ports"
-	"github.com/weather-app/weather-fetcher/internal/pkg/logger"
 )
 
 func TestKafkaProducerFactory(t *testing.T) {

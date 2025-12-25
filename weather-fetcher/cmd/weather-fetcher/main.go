@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 
-	"github.com/weather-app/weather-fetcher/internal/bootstrap"
+	"github.com/k-shtanenko/weather-app/weather-fetcher/internal/bootstrap"
 )
 
 func main() {

@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/k-shtanenko/weather-app/weather-fetcher/internal/domain/ports"
 	"github.com/robfig/cron/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/weather-app/weather-fetcher/internal/domain/ports"
 )
 
 func TestCronScheduler_Schedule(t *testing.T) {

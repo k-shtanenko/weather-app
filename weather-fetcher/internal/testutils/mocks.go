@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
+	"github.com/k-shtanenko/weather-app/weather-fetcher/internal/domain/entities"
+	"github.com/k-shtanenko/weather-app/weather-fetcher/internal/domain/ports"
 	"github.com/stretchr/testify/mock"
-	"github.com/weather-app/weather-fetcher/internal/domain/entities"
-	"github.com/weather-app/weather-fetcher/internal/domain/ports"
 )
 
 type MockFetcher struct {

@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/IBM/sarama"
-	"github.com/weather-app/weather-fetcher/internal/domain/entities"
-	"github.com/weather-app/weather-fetcher/internal/domain/ports"
-	"github.com/weather-app/weather-fetcher/internal/pkg/logger"
+	"github.com/k-shtanenko/weather-app/weather-fetcher/internal/domain/entities"
+	"github.com/k-shtanenko/weather-app/weather-fetcher/internal/domain/ports"
+	"github.com/k-shtanenko/weather-app/weather-fetcher/internal/pkg/logger"
 )
 
 type KafkaProducer struct {

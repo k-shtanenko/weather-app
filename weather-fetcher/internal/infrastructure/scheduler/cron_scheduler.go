@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/k-shtanenko/weather-app/weather-fetcher/internal/domain/ports"
+	"github.com/k-shtanenko/weather-app/weather-fetcher/internal/pkg/logger"
 	"github.com/robfig/cron/v3"
-	"github.com/weather-app/weather-fetcher/internal/domain/ports"
-	"github.com/weather-app/weather-fetcher/internal/pkg/logger"
 )
 
 type CronScheduler struct {

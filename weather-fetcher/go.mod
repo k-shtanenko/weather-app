@@ -1,4 +1,4 @@
-module github.com/weather-app/weather-fetcher
+module github.com/k-shtanenko/weather-app/weather-fetcher
 
 go 1.24.0
 

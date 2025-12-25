@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/k-shtanenko/weather-app/weather-fetcher/internal/domain/entities"
+	"github.com/k-shtanenko/weather-app/weather-fetcher/internal/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/weather-app/weather-fetcher/internal/domain/entities"
-	"github.com/weather-app/weather-fetcher/internal/testutils"
 )
 
 func TestWeatherService_Start(t *testing.T) {

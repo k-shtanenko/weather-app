@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/k-shtanenko/weather-app/weather-fetcher/internal/domain/entities"
+	"github.com/k-shtanenko/weather-app/weather-fetcher/internal/domain/ports"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/weather-app/weather-fetcher/internal/domain/entities"
-	"github.com/weather-app/weather-fetcher/internal/domain/ports"
 )
 
 func TestOpenWeatherFetcher_Fetch(t *testing.T) {
