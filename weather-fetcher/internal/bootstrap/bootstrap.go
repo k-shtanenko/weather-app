@@ -7,19 +7,18 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/k-shtanenko/weather-app/weather-fetcher/internal/application"
-	"github.com/k-shtanenko/weather-app/weather-fetcher/internal/config"
-	"github.com/k-shtanenko/weather-app/weather-fetcher/internal/domain/ports"
-	"github.com/k-shtanenko/weather-app/weather-fetcher/internal/infrastructure/http"
-	"github.com/k-shtanenko/weather-app/weather-fetcher/internal/infrastructure/messaging"
-	"github.com/k-shtanenko/weather-app/weather-fetcher/internal/infrastructure/scheduler"
-	"github.com/k-shtanenko/weather-app/weather-fetcher/internal/pkg/logger"
+	"github.com/k-shtanenko/weather-app/weather-fetcher/api"
+	"github.com/k-shtanenko/weather-app/weather-fetcher/config"
+	"github.com/k-shtanenko/weather-app/weather-fetcher/internal/logger"
+	"github.com/k-shtanenko/weather-app/weather-fetcher/internal/producer"
+	"github.com/k-shtanenko/weather-app/weather-fetcher/internal/scheduler"
+	"github.com/k-shtanenko/weather-app/weather-fetcher/internal/services"
 )
 
 type BootstrapInterface interface {
 	PrintConfigInfo()
 	Run() error
-	initDependencies() (ports.Fetcher, ports.Producer, ports.Scheduler, error)
+	initDependencies() (api.Fetcher, producer.Producer, scheduler.Scheduler, error)
 }
 
 type Bootstrap struct {
@@ -76,7 +75,7 @@ func (b *Bootstrap) Run() error {
 		return fmt.Errorf("initial health checks failed: %w", err)
 	}
 
-	serviceFactory := application.NewWeatherServiceFactory()
+	serviceFactory := services.NewWeatherServiceFactory()
 	service := serviceFactory.Create(
 		fetcher,
 		producer,
@@ -101,14 +100,14 @@ func (b *Bootstrap) Run() error {
 }
 
 func (b *Bootstrap) initDependencies() (
-	ports.Fetcher,
-	ports.Producer,
-	ports.Scheduler,
+	api.Fetcher,
+	producer.Producer,
+	scheduler.Scheduler,
 	error,
 ) {
 	b.logger.Info("Initializing dependencies...")
 
-	fetcherFactory := http.NewOpenWeatherFetcherFactory()
+	fetcherFactory := api.NewOpenWeatherFetcherFactory()
 	fetcher := fetcherFactory.CreateFetcher(
 		b.config.OpenWeather.BaseURL,
 		b.config.OpenWeather.APIKey,
@@ -117,7 +116,7 @@ func (b *Bootstrap) initDependencies() (
 	)
 	b.logger.Info("OpenWeather fetcher initialized")
 
-	producerFactory := messaging.NewKafkaProducerFactory()
+	producerFactory := producer.NewKafkaProducerFactory()
 	producer, err := producerFactory.CreateProducer(
 		b.config.Kafka.Broker,
 		b.config.Kafka.Topic,

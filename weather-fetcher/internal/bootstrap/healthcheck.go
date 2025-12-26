@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/k-shtanenko/weather-app/weather-fetcher/internal/domain/ports"
-	"github.com/k-shtanenko/weather-app/weather-fetcher/internal/pkg/logger"
+	"github.com/k-shtanenko/weather-app/weather-fetcher/api"
+	"github.com/k-shtanenko/weather-app/weather-fetcher/internal/logger"
+	"github.com/k-shtanenko/weather-app/weather-fetcher/internal/producer"
 )
 
 type HealthCheck interface {
@@ -17,8 +18,8 @@ type HealthCheck interface {
 }
 
 type HealthChecker struct {
-	fetcher  ports.Fetcher
-	producer ports.Producer
+	fetcher  api.Fetcher
+	producer producer.Producer
 	logger   logger.Logger
 	config   struct {
 		apiTimeout    time.Duration
@@ -28,7 +29,7 @@ type HealthChecker struct {
 	}
 }
 
-func NewHealthChecker(fetcher ports.Fetcher, producer ports.Producer, apiTimeout, kafkaTimeout, retryInterval time.Duration, maxRetries int) HealthCheck {
+func NewHealthChecker(fetcher api.Fetcher, producer producer.Producer, apiTimeout, kafkaTimeout, retryInterval time.Duration, maxRetries int) HealthCheck {
 	return &HealthChecker{
 		fetcher:  fetcher,
 		producer: producer,

@@ -1,4 +1,5 @@
 # Binaries
+weather-fetcher
 *.exe
 *.exe~
 *.dll

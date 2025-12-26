@@ -9,29 +9,28 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/k-shtanenko/weather-app/weather-api/internal/application"
-	"github.com/k-shtanenko/weather-app/weather-api/internal/config"
-	"github.com/k-shtanenko/weather-app/weather-api/internal/domain/ports"
-	"github.com/k-shtanenko/weather-app/weather-api/internal/infrastructure/api"
-	"github.com/k-shtanenko/weather-app/weather-api/internal/infrastructure/cache"
-	"github.com/k-shtanenko/weather-app/weather-api/internal/infrastructure/database"
-	"github.com/k-shtanenko/weather-app/weather-api/internal/infrastructure/excel"
-	"github.com/k-shtanenko/weather-app/weather-api/internal/infrastructure/messaging"
-	"github.com/k-shtanenko/weather-app/weather-api/internal/infrastructure/scheduler"
-	"github.com/k-shtanenko/weather-app/weather-api/internal/infrastructure/storage"
-	"github.com/k-shtanenko/weather-app/weather-api/internal/pkg/logger"
+	"github.com/k-shtanenko/weather-app/weather-api/config"
+	"github.com/k-shtanenko/weather-app/weather-api/internal/api"
+	"github.com/k-shtanenko/weather-app/weather-api/internal/cache"
+	"github.com/k-shtanenko/weather-app/weather-api/internal/consumer"
+	"github.com/k-shtanenko/weather-app/weather-api/internal/database"
+	"github.com/k-shtanenko/weather-app/weather-api/internal/excel"
+	"github.com/k-shtanenko/weather-app/weather-api/internal/logger"
+	"github.com/k-shtanenko/weather-app/weather-api/internal/scheduler"
+	"github.com/k-shtanenko/weather-app/weather-api/internal/services"
+	"github.com/k-shtanenko/weather-app/weather-api/internal/storage"
 )
 
 type App struct {
 	config        *config.Config
 	logger        logger.Logger
-	weatherRepo   ports.WeatherRepository
-	reportRepo    ports.ReportRepository
-	weatherProc   *application.WeatherProcessor
-	reportService *application.ReportService
-	cacheService  *application.CacheService
-	kafkaConsumer ports.Consumer
-	scheduler     ports.Scheduler
+	weatherRepo   database.WeatherRepository
+	reportRepo    database.ReportRepository
+	weatherProc   *services.WeatherProcessor
+	reportService *services.ReportService
+	cacheService  *services.CacheService
+	kafkaConsumer consumer.Consumer
+	scheduler     scheduler.Scheduler
 	apiServer     api.API
 }
 
@@ -99,7 +98,7 @@ func (a *App) initComponents() error {
 	if err != nil {
 		return fmt.Errorf("failed to create cache: %w", err)
 	}
-	a.cacheService = application.NewCacheService(redisCache, a.config.Cache.MaxCacheSizeMB)
+	a.cacheService = services.NewCacheService(redisCache, a.config.Cache.MaxCacheSizeMB)
 
 	a.logger.Info("Initializing Minio storage...")
 	minioStorage, err := storage.NewMinioStorage(
@@ -117,8 +116,8 @@ func (a *App) initComponents() error {
 	excelGen := excel.NewExcelGeneratorImpl()
 
 	a.logger.Info("Initializing application services...")
-	a.weatherProc = application.NewWeatherProcessor(weatherRepo)
-	a.reportService = application.NewReportService(
+	a.weatherProc = services.NewWeatherProcessor(weatherRepo)
+	a.reportService = services.NewReportService(
 		weatherRepo,
 		reportRepo,
 		excelGen,
@@ -127,7 +126,7 @@ func (a *App) initComponents() error {
 	)
 
 	a.logger.Info("Initializing Kafka consumer...")
-	kafkaConsumer, err := messaging.NewKafkaConsumer(
+	kafkaConsumer, err := consumer.NewKafkaConsumer(
 		a.config.Kafka.Broker,
 		a.config.Kafka.Topic,
 		a.config.Kafka.GroupID,

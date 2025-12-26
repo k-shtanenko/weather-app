@@ -1,7 +1,7 @@
 package main
 
 import (
-	_ "github.com/k-shtanenko/weather-app/weather-api/docs"
+	_ "github.com/k-shtanenko/weather-app/weather-api/internal/api/swagger"
 	"github.com/k-shtanenko/weather-app/weather-api/internal/bootstrap"
 )
 
