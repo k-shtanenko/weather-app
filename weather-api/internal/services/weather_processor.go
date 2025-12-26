@@ -32,7 +32,6 @@ func (s *WeatherProcessor) ProcessWeatherData(ctx context.Context, weather model
 		return fmt.Errorf("failed to save weather data: %w", err)
 	}
 
-	// Обновляем агрегат
 	return s.updateDailyAggregate(ctx, weather)
 }
 
@@ -69,7 +68,6 @@ func (s *WeatherProcessor) updateDailyAggregate(ctx context.Context, weather mod
 		return s.weatherRepo.SaveDailyAggregate(ctx, aggregate)
 	}
 
-	// Упрощенное обновление агрегата
 	updatedAggregate := &models.DailyAggregate{
 		ID:              existingAgg.GetID(),
 		CityID:          existingAgg.GetCityID(),
