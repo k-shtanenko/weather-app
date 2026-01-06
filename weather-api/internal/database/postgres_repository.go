@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/k-shtanenko/weather-app/weather-api/config"
 	"github.com/k-shtanenko/weather-app/weather-api/internal/logger"
 	"github.com/k-shtanenko/weather-app/weather-api/internal/models"
 )
@@ -32,64 +33,49 @@ type ReportRepository interface {
 }
 
 type PostgresWeatherRepository struct {
-	coordinatorPool *pgxpool.Pool
-	shardPools      []*pgxpool.Pool
-	logger          logger.Logger
+	bucketManager *BucketManager
+	logger        logger.Logger
 }
 
 type PostgresReportRepository struct {
-	pool   *pgxpool.Pool
-	logger logger.Logger
+	bucketManager *BucketManager
+	logger        logger.Logger
 }
 
 func NewPostgresWeatherRepository(coordinatorHost string, shardHosts []string, port int, user, password, database string) (*PostgresWeatherRepository, error) {
 	log := logger.New("info", "development").WithField("component", "postgres_weather_repository")
 
-	coordinatorConnStr := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable",
-		user, password, coordinatorHost, port, database)
+	cfg := config.PostgresConfig{
+		CoordinatorHost:    coordinatorHost,
+		ShardHosts:         shardHosts,
+		Port:               port,
+		User:               user,
+		Password:           password,
+		Database:           database,
+		SSLMode:            "disable",
+		MaxConnections:     20,
+		MaxIdleConnections: 5,
+		ConnectionTimeout:  30 * time.Second,
+	}
 
-	coordinatorPool, err := pgxpool.New(context.Background(), coordinatorConnStr)
+	bucketManager, err := NewBucketManager(context.Background(), cfg)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create coordinator pool: %w", err)
+		return nil, fmt.Errorf("failed to create bucket manager: %w", err)
 	}
 
-	shardPools := make([]*pgxpool.Pool, len(shardHosts))
-	for i, shardHost := range shardHosts {
-		shardConnStr := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable",
-			user, password, shardHost, port, database)
-
-		shardPool, err := pgxpool.New(context.Background(), shardConnStr)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create shard %d pool: %w", i, err)
-		}
-		shardPools[i] = shardPool
-	}
-
-	if err := coordinatorPool.Ping(context.Background()); err != nil {
-		return nil, fmt.Errorf("coordinator ping failed: %w", err)
-	}
-
-	for i, pool := range shardPools {
-		if err := pool.Ping(context.Background()); err != nil {
-			return nil, fmt.Errorf("shard %d ping failed: %w", i, err)
-		}
-	}
-
-	log.Infof("Created weather repository with %d shards", len(shardPools))
+	log.Infof("Created weather repository with %d buckets", bucketManager.totalBuckets)
 	return &PostgresWeatherRepository{
-		coordinatorPool: coordinatorPool,
-		shardPools:      shardPools,
-		logger:          log,
+		bucketManager: bucketManager,
+		logger:        log,
 	}, nil
 }
 
-func (r *PostgresWeatherRepository) getShardPool(cityID int) *pgxpool.Pool {
-	shardIndex := cityID % len(r.shardPools)
-	return r.shardPools[shardIndex]
+func (r *PostgresWeatherRepository) getPool(cityID int) *pgxpool.Pool {
+	return r.bucketManager.GetPoolForUser(cityID)
 }
 
 func (r *PostgresWeatherRepository) Save(ctx context.Context, data models.WeatherDataEntity) error {
-	pool := r.getShardPool(data.GetCityID())
+	pool := r.getPool(data.GetCityID())
 
 	query := `
 		INSERT INTO weather_data (
@@ -132,7 +118,7 @@ func (r *PostgresWeatherRepository) Save(ctx context.Context, data models.Weathe
 }
 
 func (r *PostgresWeatherRepository) FindByCityIDAndDateRange(ctx context.Context, cityID int, start, end time.Time) ([]models.WeatherDataEntity, error) {
-	pool := r.getShardPool(cityID)
+	pool := r.getPool(cityID)
 
 	query := `
 		SELECT id, city_id, city_name, country, temperature, feels_like,
@@ -184,6 +170,8 @@ func (r *PostgresWeatherRepository) FindByCityIDAndDateRange(ctx context.Context
 }
 
 func (r *PostgresWeatherRepository) GetDailyAggregate(ctx context.Context, cityID int, date time.Time) (models.DailyAggregateEntity, error) {
+	pool := r.getPool(cityID)
+
 	query := `
 		SELECT id, city_id, date, avg_temperature, max_temperature, min_temperature,
 			avg_humidity, avg_pressure, avg_wind_speed, dominant_weather,
@@ -193,7 +181,7 @@ func (r *PostgresWeatherRepository) GetDailyAggregate(ctx context.Context, cityI
 	`
 
 	var aggregate models.DailyAggregate
-	err := r.coordinatorPool.QueryRow(ctx, query, cityID, date).Scan(
+	err := pool.QueryRow(ctx, query, cityID, date).Scan(
 		&aggregate.ID,
 		&aggregate.CityID,
 		&aggregate.Date,
@@ -220,6 +208,8 @@ func (r *PostgresWeatherRepository) GetDailyAggregate(ctx context.Context, cityI
 }
 
 func (r *PostgresWeatherRepository) SaveDailyAggregate(ctx context.Context, aggregate models.DailyAggregateEntity) error {
+	pool := r.getPool(aggregate.GetCityID())
+
 	query := `
 		INSERT INTO daily_aggregates (
 			id, city_id, date, avg_temperature, max_temperature, min_temperature,
@@ -228,7 +218,7 @@ func (r *PostgresWeatherRepository) SaveDailyAggregate(ctx context.Context, aggr
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 	`
 
-	_, err := r.coordinatorPool.Exec(ctx, query,
+	_, err := pool.Exec(ctx, query,
 		aggregate.GetID(),
 		aggregate.GetCityID(),
 		aggregate.GetDate(),
@@ -248,6 +238,8 @@ func (r *PostgresWeatherRepository) SaveDailyAggregate(ctx context.Context, aggr
 }
 
 func (r *PostgresWeatherRepository) UpdateDailyAggregate(ctx context.Context, aggregate models.DailyAggregateEntity) error {
+	pool := r.getPool(aggregate.GetCityID())
+
 	query := `
 		UPDATE daily_aggregates SET
 			avg_temperature = $1,
@@ -262,7 +254,7 @@ func (r *PostgresWeatherRepository) UpdateDailyAggregate(ctx context.Context, ag
 		WHERE city_id = $9 AND date = $10
 	`
 
-	result, err := r.coordinatorPool.Exec(ctx, query,
+	result, err := pool.Exec(ctx, query,
 		aggregate.GetAvgTemperature(),
 		aggregate.GetMaxTemperature(),
 		aggregate.GetMinTemperature(),
@@ -287,89 +279,108 @@ func (r *PostgresWeatherRepository) UpdateDailyAggregate(ctx context.Context, ag
 }
 
 func (r *PostgresWeatherRepository) GetCitiesWithData(ctx context.Context) ([]int, error) {
-	query := `
-		SELECT DISTINCT city_id FROM weather_data
-		WHERE recorded_at >= NOW() - INTERVAL '30 days'
-		ORDER BY city_id
-	`
+	var allCities []int
+	seenCities := make(map[int]bool)
 
-	rows, err := r.coordinatorPool.Query(ctx, query)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query cities: %w", err)
-	}
-	defer rows.Close()
+	for i := 0; i < r.bucketManager.totalBuckets; i++ {
+		pool := r.bucketManager.buckets[i].Pool
 
-	var cities []int
-	for rows.Next() {
-		var cityID int
-		if err := rows.Scan(&cityID); err != nil {
-			return nil, fmt.Errorf("failed to scan city_id: %w", err)
+		query := `
+			SELECT DISTINCT city_id FROM weather_data
+			WHERE recorded_at >= NOW() - INTERVAL '30 days'
+		`
+
+		rows, err := pool.Query(ctx, query)
+		if err != nil {
+			return nil, fmt.Errorf("failed to query cities from bucket %d: %w", i, err)
 		}
-		cities = append(cities, cityID)
+
+		for rows.Next() {
+			var cityID int
+			if err := rows.Scan(&cityID); err != nil {
+				rows.Close()
+				return nil, fmt.Errorf("failed to scan city_id: %w", err)
+			}
+			if !seenCities[cityID] {
+				seenCities[cityID] = true
+				allCities = append(allCities, cityID)
+			}
+		}
+		rows.Close()
 	}
 
-	return cities, nil
+	return allCities, nil
 }
 
 func (r *PostgresWeatherRepository) CleanupOldData(ctx context.Context, retentionDays int) error {
-	for i, pool := range r.shardPools {
+	for i := 0; i < r.bucketManager.totalBuckets; i++ {
+		pool := r.bucketManager.buckets[i].Pool
 		query := `DELETE FROM weather_data WHERE recorded_at < NOW() - INTERVAL '1 day' * $1`
 		_, err := pool.Exec(ctx, query, retentionDays)
 		if err != nil {
-			return fmt.Errorf("failed to cleanup shard %d: %w", i, err)
+			return fmt.Errorf("failed to cleanup bucket %d: %w", i, err)
 		}
-	}
 
-	aggQuery := `DELETE FROM daily_aggregates WHERE date < NOW() - INTERVAL '1 day' * $1`
-	_, err := r.coordinatorPool.Exec(ctx, aggQuery, retentionDays*2)
-	return err
-}
-
-func (r *PostgresWeatherRepository) HealthCheck(ctx context.Context) error {
-	if err := r.coordinatorPool.Ping(ctx); err != nil {
-		return fmt.Errorf("coordinator ping failed: %w", err)
-	}
-
-	for i, pool := range r.shardPools {
-		if err := pool.Ping(ctx); err != nil {
-			return fmt.Errorf("shard %d ping failed: %w", i, err)
+		aggQuery := `DELETE FROM daily_aggregates WHERE date < NOW() - INTERVAL '1 day' * $1`
+		_, err = pool.Exec(ctx, aggQuery, retentionDays*2)
+		if err != nil {
+			return fmt.Errorf("failed to cleanup aggregates in bucket %d: %w", i, err)
 		}
 	}
 
 	return nil
 }
 
-func (r *PostgresWeatherRepository) Close() error {
-	r.coordinatorPool.Close()
-	for _, pool := range r.shardPools {
-		pool.Close()
+func (r *PostgresWeatherRepository) HealthCheck(ctx context.Context) error {
+	for i := 0; i < r.bucketManager.totalBuckets; i++ {
+		pool := r.bucketManager.buckets[i].Pool
+		if err := pool.Ping(ctx); err != nil {
+			return fmt.Errorf("bucket %d ping failed: %w", i, err)
+		}
 	}
+	return nil
+}
+
+func (r *PostgresWeatherRepository) Close() error {
+	r.bucketManager.Close()
 	return nil
 }
 
 func NewPostgresReportRepository(host string, port int, user, password, database string) (*PostgresReportRepository, error) {
 	log := logger.New("info", "development").WithField("component", "postgres_report_repository")
 
-	connStr := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable",
-		user, password, host, port, database)
-
-	pool, err := pgxpool.New(context.Background(), connStr)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create connection pool: %w", err)
+	cfg := config.PostgresConfig{
+		CoordinatorHost:    host,
+		ShardHosts:         []string{host},
+		Port:               port,
+		User:               user,
+		Password:           password,
+		Database:           database,
+		SSLMode:            "disable",
+		MaxConnections:     20,
+		MaxIdleConnections: 5,
+		ConnectionTimeout:  30 * time.Second,
 	}
 
-	if err := pool.Ping(context.Background()); err != nil {
-		return nil, fmt.Errorf("ping failed: %w", err)
+	bucketManager, err := NewBucketManager(context.Background(), cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create bucket manager: %w", err)
 	}
 
 	log.Info("Created report repository")
 	return &PostgresReportRepository{
-		pool:   pool,
-		logger: log,
+		bucketManager: bucketManager,
+		logger:        log,
 	}, nil
 }
 
+func (r *PostgresReportRepository) getPool() *pgxpool.Pool {
+	return r.bucketManager.GetPoolForUser(0)
+}
+
 func (r *PostgresReportRepository) SaveReport(ctx context.Context, report models.ExcelReportEntity) error {
+	pool := r.getPool()
+
 	query := `
 		INSERT INTO excel_reports (
 			id, report_type, city_id, period_start, period_end,
@@ -378,7 +389,7 @@ func (r *PostgresReportRepository) SaveReport(ctx context.Context, report models
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 	`
 
-	_, err := r.pool.Exec(ctx, query,
+	_, err := pool.Exec(ctx, query,
 		report.GetID(),
 		report.GetReportType(),
 		report.GetCityID(),
@@ -397,6 +408,8 @@ func (r *PostgresReportRepository) SaveReport(ctx context.Context, report models
 }
 
 func (r *PostgresReportRepository) FindReportByTypeAndPeriod(ctx context.Context, reportType models.ReportType, cityID int, start, end time.Time) (models.ExcelReportEntity, error) {
+	pool := r.getPool()
+
 	query := `
 		SELECT id, report_type, city_id, period_start, period_end,
 			file_name, file_size, storage_path, download_url,
@@ -409,7 +422,7 @@ func (r *PostgresReportRepository) FindReportByTypeAndPeriod(ctx context.Context
 	`
 
 	var report models.ExcelReport
-	err := r.pool.QueryRow(ctx, query, reportType, cityID, start, end).Scan(
+	err := pool.QueryRow(ctx, query, reportType, cityID, start, end).Scan(
 		&report.ID,
 		&report.ReportType,
 		&report.CityID,
@@ -435,6 +448,8 @@ func (r *PostgresReportRepository) FindReportByTypeAndPeriod(ctx context.Context
 }
 
 func (r *PostgresReportRepository) FindReportByID(ctx context.Context, reportID string) (models.ExcelReportEntity, error) {
+	pool := r.getPool()
+
 	query := `
 		SELECT id, report_type, city_id, period_start, period_end,
 			file_name, file_size, storage_path, download_url,
@@ -444,7 +459,7 @@ func (r *PostgresReportRepository) FindReportByID(ctx context.Context, reportID 
 	`
 
 	var report models.ExcelReport
-	err := r.pool.QueryRow(ctx, query, reportID).Scan(
+	err := pool.QueryRow(ctx, query, reportID).Scan(
 		&report.ID,
 		&report.ReportType,
 		&report.CityID,
@@ -470,16 +485,17 @@ func (r *PostgresReportRepository) FindReportByID(ctx context.Context, reportID 
 }
 
 func (r *PostgresReportRepository) CleanupExpiredReports(ctx context.Context) error {
+	pool := r.getPool()
 	query := `DELETE FROM excel_reports WHERE expires_at < NOW()`
-	_, err := r.pool.Exec(ctx, query)
+	_, err := pool.Exec(ctx, query)
 	return err
 }
 
 func (r *PostgresReportRepository) HealthCheck(ctx context.Context) error {
-	return r.pool.Ping(ctx)
+	return r.getPool().Ping(ctx)
 }
 
 func (r *PostgresReportRepository) Close() error {
-	r.pool.Close()
+	r.bucketManager.Close()
 	return nil
 }
